@@ -115,7 +115,19 @@ async function tryFetch(url, timeoutMs = 8000) {
 }
 
 async function fetchPipedStreams(videoId) {
-    // 1단계: 직접 요청
+    // 1단계: 자체 Vercel API (서버→Piped, CORS 없음) — 배포 환경에서만 동작
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        try {
+            log('자체 API(/api/streams) 시도...', 'info');
+            const data = await tryFetch(`/api/streams?videoId=${videoId}`, 10000);
+            log('자체 API 성공', 'ok');
+            return data;
+        } catch (e) {
+            log(`자체 API 실패: ${e.message}`, 'warn');
+        }
+    }
+
+    // 2단계: 직접 요청
     for (const base of PIPED_INSTANCES) {
         try {
             log(`Piped 직접 시도: ${base}`, 'info');
@@ -127,7 +139,7 @@ async function fetchPipedStreams(videoId) {
         }
     }
 
-    // 2단계: CORS 프록시 경유
+    // 3단계: CORS 프록시 경유
     log('직접 요청 전부 실패 → CORS 프록시 시도', 'warn');
     for (const proxyFn of CORS_PROXIES) {
         for (const base of PIPED_INSTANCES.slice(0, 2)) {
@@ -143,7 +155,7 @@ async function fetchPipedStreams(videoId) {
         }
     }
 
-    throw new Error('모든 Piped 인스턴스와 프록시에 실패했습니다');
+    throw new Error('모든 방법 실패 (자체 API / 직접 / 프록시)');
 }
 
 /* ===== 영상 불러오기 ===== */
