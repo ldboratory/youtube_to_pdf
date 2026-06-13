@@ -35,7 +35,7 @@
                         <div class="placeholder-icon">🎬</div>
                         <p>유튜브 URL을 입력하고 불러오기를 누르세요</p>
                     </div>
-                    <!-- YouTube iframe이 여기 들어감 -->
+                    <!-- YouTube iframe (데스크탑용) -->
                     <iframe
                         id="ytPlayer"
                         style="display:none"
@@ -43,6 +43,15 @@
                         allow="autoplay; encrypted-media"
                         allowfullscreen
                     ></iframe>
+
+                    <!-- 직접 비디오 (iOS/모바일용) -->
+                    <video
+                        id="directVideoEl"
+                        style="display:none;width:100%;height:100%;object-fit:contain"
+                        controls
+                        playsinline
+                        crossorigin="anonymous"
+                    ></video>
 
                     <!-- 드래그 선택 오버레이 (화면캡처 모드에서 사용) -->
                     <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
@@ -78,6 +87,20 @@
                     </label>
                 </div>
                 <div id="statusBar" class="status-bar">영상을 불러오고 화면 공유를 시작하세요</div>
+
+                <!-- 로그 패널 -->
+                <div class="log-panel">
+                    <div class="log-header">
+                        <span>🪵 로그</span>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <label class="toggle-label" style="font-size:0.75rem">
+                                <input type="checkbox" id="logToggle" checked> 표시
+                            </label>
+                            <button id="clearLogBtn" class="btn btn-gray btn-sm">지우기</button>
+                        </div>
+                    </div>
+                    <div id="logOutput" class="log-output"></div>
+                </div>
             </div>
 
             <!-- 오른쪽: 캡처 목록 -->

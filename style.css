@@ -355,6 +355,48 @@ body {
     border: 1px solid #555;
 }
 
+/* 로그 패널 */
+.log-panel {
+    background: #0a0a0a;
+    border-top: 1px solid #222;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 160px;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+    background: #111;
+    border-bottom: 1px solid #222;
+    font-size: 0.78rem;
+    color: #888;
+    flex-shrink: 0;
+}
+
+.log-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    font-family: 'Courier New', monospace;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+.log-output::-webkit-scrollbar { width: 3px; }
+.log-output::-webkit-scrollbar-thumb { background: #333; }
+
+.log-line { padding: 1px 0; border-bottom: 1px solid #151515; }
+.log-line.info  { color: #7ec8e3; }
+.log-line.ok    { color: #81c784; }
+.log-line.warn  { color: #ffb74d; }
+.log-line.error { color: #ef5350; }
+.log-line.capture { color: #ce93d8; }
+
 /* 모바일 반응형 */
 @media (max-width: 600px) {
     .captures-panel {
