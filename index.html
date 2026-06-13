@@ -35,7 +35,7 @@
                         <div class="placeholder-icon">🎬</div>
                         <p>유튜브 URL을 입력하고 불러오기를 누르세요</p>
                     </div>
-                    <!-- YouTube iframe이 여기 들어감 -->
+                    <!-- YouTube iframe (데스크탑용) -->
                     <iframe
                         id="ytPlayer"
                         style="display:none"
@@ -43,6 +43,15 @@
                         allow="autoplay; encrypted-media"
                         allowfullscreen
                     ></iframe>
+
+                    <!-- 직접 비디오 (iOS/모바일용) -->
+                    <video
+                        id="directVideoEl"
+                        style="display:none;width:100%;height:100%;object-fit:contain"
+                        controls
+                        playsinline
+                        crossorigin="anonymous"
+                    ></video>
 
                     <!-- 드래그 선택 오버레이 (화면캡처 모드에서 사용) -->
                     <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
