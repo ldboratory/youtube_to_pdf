@@ -94,27 +94,56 @@ function toEmbedUrl(videoId) {
     return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0`;
 }
 
-/* ===== Piped API 인스턴스 목록 (순서대로 시도) ===== */
+/* ===== Piped API 인스턴스 + CORS 프록시 ===== */
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',
     'https://piped-api.garudalinux.org',
     'https://api.piped.yt',
+    'https://pipedapi.reallyaweso.me',
 ];
 
+// CORS 프록시: 직접 요청 실패 시 사용
+const CORS_PROXIES = [
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+async function tryFetch(url, timeoutMs = 8000) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
 async function fetchPipedStreams(videoId) {
+    // 1단계: 직접 요청
     for (const base of PIPED_INSTANCES) {
         try {
-            log(`Piped 시도: ${base}`, 'info');
-            const res = await fetch(`${base}/streams/${videoId}`, { signal: AbortSignal.timeout(8000) });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
+            log(`Piped 직접 시도: ${base}`, 'info');
+            const data = await tryFetch(`${base}/streams/${videoId}`);
             log(`Piped 성공: ${base}`, 'ok');
             return data;
         } catch (e) {
             log(`Piped 실패 (${base}): ${e.message}`, 'warn');
         }
     }
-    throw new Error('모든 Piped 인스턴스에 실패했습니다');
+
+    // 2단계: CORS 프록시 경유
+    log('직접 요청 전부 실패 → CORS 프록시 시도', 'warn');
+    for (const proxyFn of CORS_PROXIES) {
+        for (const base of PIPED_INSTANCES.slice(0, 2)) {
+            const proxied = proxyFn(`${base}/streams/${videoId}`);
+            try {
+                log(`프록시 시도: ${proxied.substring(0, 60)}...`, 'info');
+                const data = await tryFetch(proxied, 12000);
+                log('CORS 프록시 성공', 'ok');
+                return data;
+            } catch (e) {
+                log(`프록시 실패: ${e.message}`, 'warn');
+            }
+        }
+    }
+
+    throw new Error('모든 Piped 인스턴스와 프록시에 실패했습니다');
 }
 
 /* ===== 영상 불러오기 ===== */
@@ -148,40 +177,54 @@ loadBtn.addEventListener('click', async () => {
 youtubeUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadBtn.click(); });
 
 async function loadDirectVideo(videoId) {
-    setStatus('Piped API에서 영상 정보 가져오는 중...', 'capturing');
+    setStatus('영상 정보 가져오는 중...', 'capturing');
     loadBtn.disabled = true;
 
     try {
         const data = await fetchPipedStreams(videoId);
+        log(`응답 키: ${Object.keys(data).join(', ')}`, 'info');
 
-        // mp4 비디오 스트림 중 최고화질 선택
-        const streams = (data.videoStreams || [])
-            .filter(s => s.mimeType && s.mimeType.includes('video/mp4') && s.url)
-            .sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
+        // HLS 우선 (iOS Safari 네이티브 지원, 프록시 서버 경유라 CORS OK)
+        let videoUrl = null;
+        let videoType = null;
 
-        log(`사용 가능한 스트림: ${streams.map(s => s.quality).join(', ')}`, 'info');
+        if (data.hls) {
+            log(`HLS 스트림 발견: ${data.hls.substring(0, 80)}...`, 'ok');
+            videoUrl = data.hls;
+            videoType = 'application/x-mpegURL';
+        } else {
+            // HLS 없으면 mp4 스트림 선택
+            const streams = (data.videoStreams || [])
+                .filter(s => s.mimeType && s.mimeType.includes('video/mp4') && s.url)
+                .sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
 
-        if (!streams.length) throw new Error('mp4 스트림을 찾을 수 없습니다');
+            log(`mp4 스트림: ${streams.map(s => s.quality).join(', ')}`, 'info');
+            if (!streams.length) throw new Error('사용 가능한 스트림 없음');
 
-        const chosen = streams[0];
-        log(`선택된 스트림: ${chosen.quality} | ${chosen.mimeType}`, 'ok');
-        log(`URL: ${chosen.url.substring(0, 80)}...`, 'info');
+            const chosen = streams[0];
+            log(`선택: ${chosen.quality} | ${chosen.mimeType}`, 'ok');
+            videoUrl = chosen.url;
+            videoType = chosen.mimeType;
+        }
 
-        directVideoEl.src = chosen.url;
+        log(`최종 URL (앞 80자): ${videoUrl.substring(0, 80)}...`, 'info');
+
+        directVideoEl.src = videoUrl;
+        if (videoType) directVideoEl.type = videoType;
         directVideoEl.style.display = 'block';
         ytPlayer.style.display = 'none';
         placeholder.style.display = 'none';
 
         await new Promise((resolve, reject) => {
             directVideoEl.onloadedmetadata = () => {
-                log(`영상 메타 로드 완료: ${directVideoEl.videoWidth}×${directVideoEl.videoHeight}`, 'ok');
+                log(`메타 로드 완료: ${directVideoEl.videoWidth}×${directVideoEl.videoHeight}`, 'ok');
                 resolve();
             };
             directVideoEl.onerror = () => {
                 const err = directVideoEl.error;
-                reject(new Error(`영상 로드 오류 (code ${err ? err.code : '?'})`));
+                reject(new Error(`영상 오류 code=${err ? err.code : '?'} msg="${err ? err.message : ''}" src=${videoUrl.substring(0,60)}`));
             };
-            setTimeout(() => reject(new Error('메타 로드 타임아웃')), 15000);
+            setTimeout(() => reject(new Error('타임아웃 (20초)')), 20000);
         });
 
         state.videoLoaded = true;
