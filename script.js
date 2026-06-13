@@ -1,3 +1,27 @@
+/* ===== 로그 패널 ===== */
+const logOutput  = document.getElementById('logOutput');
+const logToggle  = document.getElementById('logToggle');
+const clearLogBtn= document.getElementById('clearLogBtn');
+
+function log(msg, level = 'info') {
+    if (!logToggle || !logToggle.checked) return;
+    const line = document.createElement('div');
+    line.className = `log-line ${level}`;
+    const now = new Date();
+    const ts  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+    line.textContent = `[${ts}] ${msg}`;
+    logOutput.appendChild(line);
+    logOutput.scrollTop = logOutput.scrollHeight;
+    // 최대 200줄 유지
+    while (logOutput.children.length > 200) logOutput.removeChild(logOutput.firstChild);
+}
+
+// 브라우저 콘솔 에러도 잡기
+window.addEventListener('error', e => log(`ERROR: ${e.message} (${e.filename}:${e.lineno})`, 'error'));
+window.addEventListener('unhandledrejection', e => log(`UNHANDLED: ${e.reason}`, 'error'));
+
+clearLogBtn.addEventListener('click', () => { logOutput.innerHTML = ''; });
+
 /* ===== 상태 ===== */
 const state = {
     videoLoaded: false,
@@ -71,6 +95,7 @@ loadBtn.addEventListener('click', () => {
     placeholder.style.display = 'none';
     state.videoLoaded = true;
     screenCaptureBtn.disabled = false;
+    log(`영상 로드: ${embed}`, 'ok');
     setStatus('영상 로드됨 — 이제 "화면 공유 시작"을 눌러주세요', 'active');
 });
 
@@ -96,7 +121,10 @@ screenCaptureBtn.addEventListener('click', async () => {
         screenVideo.srcObject = stream;
         await screenVideo.play();
 
-        stream.getVideoTracks()[0].addEventListener('ended', stopScreenShare);
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        log(`화면 공유 시작: ${settings.width}×${settings.height} @${settings.frameRate}fps`, 'ok');
+        track.addEventListener('ended', stopScreenShare);
 
         screenCaptureBtn.textContent = '🖥️ 화면 공유 중지';
         screenCaptureBtn.style.background = '#555';
@@ -106,8 +134,10 @@ screenCaptureBtn.addEventListener('click', async () => {
         setStatus('화면 공유 시작됨 — "구역 선택"으로 캡처 영역을 지정하세요', 'active');
     } catch (err) {
         if (err.name !== 'NotAllowedError') {
+            log(`화면 공유 실패: ${err.name} — ${err.message}`, 'error');
             setStatus('화면 공유 실패: ' + err.message, 'warning');
         } else {
+            log('화면 공유 취소 (사용자)', 'warn');
             setStatus('화면 공유가 취소되었습니다', '');
         }
     }
@@ -197,6 +227,7 @@ function onDragEnd(e) {
     closeRegionModal();
     drawSelectedOverlay({ x, y, w, h }); // CSS px 기준으로 오버레이 표시
     state.prevImageData = null; // 이전 비교용 초기화
+    log(`구역 설정: CSS(${Math.round(x)},${Math.round(y)}) ${Math.round(w)}×${Math.round(h)}px | dpr=${window.devicePixelRatio}`, 'ok');
     setStatus(`구역 설정됨 (${Math.round(w)}×${Math.round(h)}px) — 캡처 준비 완료`, 'active');
 }
 
@@ -347,8 +378,10 @@ manualCaptureBtn.addEventListener('click', () => {
     const dataUrl = captureRegion();
     if (dataUrl) {
         addCapture(dataUrl);
+        log(`수동 캡처 #${state.captures.length} 완료`, 'capture');
         setStatus(`캡처됨 (총 ${state.captures.length}개)`, 'capturing');
     } else {
+        log('수동 캡처 실패: 스트림 또는 구역 없음', 'error');
         setStatus('캡처 실패: 화면 공유 영상이 준비되지 않았습니다', 'warning');
     }
 });
@@ -370,6 +403,7 @@ autoCaptureChk.addEventListener('change', () => {
 function startAutoCapture() {
     state.autoRunning = true;
     const ms = parseFloat(checkIntervalIn.value) * 1000 || 1500;
+    log(`자동 캡처 시작 (간격 ${ms}ms, 민감도 ${sensitivityIn.value})`, 'info');
     setStatus('자동 캡처 중... (변화 감지)', 'capturing');
 
     function tick() {
@@ -378,7 +412,10 @@ function startAutoCapture() {
             const dataUrl = captureRegion();
             if (dataUrl) {
                 addCapture(dataUrl);
+                log(`변화 감지 → 자동 캡처 #${state.captures.length}`, 'capture');
                 setStatus(`변화 감지 → 캡처됨 (총 ${state.captures.length}개)`, 'capturing');
+            } else {
+                log('변화 감지됐으나 캡처 실패 (스트림 오류)', 'warn');
             }
         }
         state.autoTimer = setTimeout(tick, ms);
@@ -487,8 +524,10 @@ exportPdfBtn.addEventListener('click', async () => {
         }
 
         pdf.save(`youtube_capture_${Date.now()}.pdf`);
+        log(`PDF 저장 완료 (${state.captures.length}페이지)`, 'ok');
         setStatus(`PDF 저장됨 (${state.captures.length}페이지)`, 'active');
     } catch (err) {
+        log(`PDF 실패: ${err.message}`, 'error');
         setStatus('PDF 생성 실패: ' + err.message, 'warning');
     }
 });
@@ -515,6 +554,7 @@ window.addEventListener('resize', () => {
         clearOverlay();
         state.region = null;
         state.prevImageData = null;
+        log(`창 리사이즈 감지 → 구역 초기화 (${window.innerWidth}×${window.innerHeight})`, 'warn');
         setStatus('창 크기가 변경되었습니다. 구역을 다시 선택해주세요', 'warning');
     }
 });
