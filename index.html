@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube to PDF - 영상 구역 캡처</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎥 YouTube to PDF</h1>
+            <p>유튜브 영상의 특정 구역을 자동으로 캡처하여 PDF로 저장하세요</p>
+        </header>
+
+        <div class="main-content">
+            <!-- 좌측: 설정 패널 -->
+            <aside class="sidebar">
+                <div class="settings-group">
+                    <h2>설정</h2>
+                    
+                    <div class="form-group">
+                        <label for="youtubeUrl">유튜브 URL:</label>
+                        <input 
+                            type="text" 
+                            id="youtubeUrl" 
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            class="input-field"
+                        >
+                        <button id="loadBtn" class="btn btn-primary">불러오기</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="captureInterval">캡처 간격 (초):</label>
+                        <input 
+                            type="number" 
+                            id="captureInterval" 
+                            value="2" 
+                            min="0.5" 
+                            step="0.5"
+                            class="input-field"
+                        >
+                        <small>화면이 변할 때마다 캡처합니다</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="captureQuality">캡처 품질:</label>
+                        <select id="captureQuality" class="input-field">
+                            <option value="0.7">낮음 (70%)</option>
+                            <option value="0.85" selected>중간 (85%)</option>
+                            <option value="1">높음 (100%)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>캡처 모드:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="captureMode" value="manual" checked>
+                                수동 캡처
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="captureMode" value="auto">
+                                자동 캡처
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="captureBtn" class="btn btn-success" disabled>
+                            📸 캡처
+                        </button>
+                        <button id="startAutoBtn" class="btn btn-info" disabled>
+                            ▶️ 자동 시작
+                        </button>
+                        <button id="stopAutoBtn" class="btn btn-warning" disabled>
+                            ⏹️ 자동 중지
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>캡처된 이미지 ({{ capturedCount }}개):</label>
+                        <div id="imageList" class="image-list"></div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="exportPdfBtn" class="btn btn-danger" disabled>
+                            📄 PDF로 내보내기
+                        </button>
+                        <button id="clearBtn" class="btn btn-secondary">
+                            🗑️ 모두 삭제
+                        </button>
+                    </div>
+
+                    <div id="status" class="status-message"></div>
+                </div>
+            </aside>
+
+            <!-- 우측: 미리보기 영역 -->
+            <main class="preview-area">
+                <div id="videoContainer" class="video-container">
+                    <div class="placeholder">
+                        <p>유튜브 URL을 입력하고 "불러오기"를 클릭하세요</p>
+                        <p class="hint">영상 위에서 드래그하여 캡처 영역을 선택할 수 있습니다</p>
+                    </div>
+                </div>
+
+                <!-- 캡처 영역 선택 오버레이 -->
+                <canvas id="selectionCanvas" class="selection-canvas"></canvas>
+                
+                <!-- 캡처된 이미지 미리보기 -->
+                <div id="previewContainer" class="preview-container"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- html2canvas 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
